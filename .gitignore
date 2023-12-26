@@ -1,0 +1,9 @@
+# Ignore build directories
+build/
+bin/
+lib/
+
+# Ignore hidden directories/files
+.*
+!.gitignore
+!.gitkeep
