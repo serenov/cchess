@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "bitboards.h"
 #include "moves.h"
+#include "piece.h"
 
 #include "magicBoardConstants.h"
 
@@ -9,11 +10,31 @@
 
 
 #define DEFAULT_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+// #define DEFAULT_FEN "rn1qkbnr/pppR1ppp/8/8/1b6/8/PPPPP1PP/RNBQKBNR b KQkq - 0 1"
 // #define DEFAULT_FEN "8/b1p2P2/2P3p1/2k5/2rp3n/4p2B/P1Pp4/6KN w - - 0 1"
 
 
 // global board object
 Boards __boards__;
+
+void displayBitboard(Bitboard bitboard)
+{
+    Bitboard pos = 1UL;
+
+    for (int y = 7; y > -1; y--)
+    {
+
+        printf("\n -------------------------------\n");
+        for (int x = 0; x < 8; x++)
+        {
+            char c = ((pos << (y * 8 + x)) & bitboard) ? '*' : ' ';
+
+            printf("| %c ", c);
+        }
+        printf("|");
+    }
+    printf("\n -------------------------------\n");
+}
 
 void initPlainBoard()
 {
@@ -127,45 +148,54 @@ static inline void initEnpassant(char **FENstring)
     else *FENstring += 2;
 }
 
-static inline Bitboard iteratePiecesAndGenerateMoves(Bitboard bitboard, Piece piece)
+static inline Bitboard iteratePiecesAndGenerateMoves(Piece piece)
 {
+    Bitboard bitboard = *(getBitboardForPiece(piece));
+    
+    displayBitboard(bitboard);
+
     Bitboard movesGenerated = 0;
 
     while(bitboard != 0) {
-        movesGenerated |= getPseudoLegalMoves(piece, ctz(bitboard));
+        movesGenerated |= getPseudoLegalMoves(piece, ctz(bitboard), false);
+        displayBitboard(movesGenerated);
         bitboard &= (bitboard - 1);
-    }
-}
-
-Bitboard getAttackedSquares(Color c)
-{
-    Bitboard movesGenerated = 0;
-
-    if(c == white)
-    {
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.whiteKing, whiteKing);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.whiteQueens, whiteQueen);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.whiteBishops, whiteBishop);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.whiteRooks, whiteRook);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.whiteKnights, whiteKnight);
-        movesGenerated |= ((__boards__.bitboards.whitePawns << 7) & ~__FILE__[0]) | ((__boards__.bitboards.whitePawns << 9) & ~__FILE__[7]);
-    }
-    else
-    {
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.blackKing, blackKing);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.blackQueens, blackQueen);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.blackBishops, blackBishop);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.blackRooks, blackRook);
-        movesGenerated |= iteratePiecesAndGenerateMoves(__boards__.bitboards.blackKnights, blackKnight);
-        movesGenerated |= ((__boards__.bitboards.blackPawns << 7) & ~__FILE__[0]) | ((__boards__.bitboards.blackPawns << 9) & ~__FILE__[7]);
     }
 
     return movesGenerated;
 }
 
+static inline Bitboard getPawnAttackMask()
+{
+    Bitboard pawns = *(getBitboardForPiece(getPieceByName(Pawn, false)));
+
+    
+    return (getColor(false) == white)?
+    ((pawns & ~(__files__[0])) << 7) | ((pawns & ~(__files__[7])) << 9):
+    ((pawns & ~(__files__[0])) >> 9) | ((pawns & ~(__files__[7])) >> 7);
+}
+
+Bitboard getAttackedSquares()
+{
+    Bitboard attackedSquares = 0;
+
+    attackedSquares |= iteratePiecesAndGenerateMoves(getPieceByName(King, false));
+    attackedSquares |= iteratePiecesAndGenerateMoves(getPieceByName(Queen, false));
+    attackedSquares |= iteratePiecesAndGenerateMoves(getPieceByName(Rook, false));
+    attackedSquares |= iteratePiecesAndGenerateMoves(getPieceByName(Bishop, false));
+    attackedSquares |= iteratePiecesAndGenerateMoves(getPieceByName(Knight, false));
+
+    attackedSquares |= getPawnAttackMask();
+
+
+    displayBitboard(attackedSquares);
+
+    return attackedSquares;
+}
+
 void updateAttackedSquares() {
-    __boards__.state[__boards__.movesCount].blackAttackMask = getAttackedSquares(black);
-    __boards__.state[__boards__.movesCount].whiteAttackMask = getAttackedSquares(white);
+   
+   __boards__.state[__boards__.movesCount].allAttackedSquares = getAttackedSquares();
 }
 
 bool setFEN(char *FENstring)
@@ -185,34 +215,13 @@ bool setFEN(char *FENstring)
 }
 
 
-void displayBitboard(Bitboard bitboard)
-{
-    Bitboard pos = 1UL;
-
-    for (int y = 7; y > -1; y--)
-    {
-
-        printf("\n -------------------------------\n");
-        for (int x = 0; x < 8; x++)
-        {
-            char c = ((pos << (y * 8 + x)) & bitboard) ? '*' : ' ';
-
-            printf("| %c ", c);
-        }
-        printf("|");
-    }
-    printf("\n -------------------------------\n");
-}
-
-
-
 bool isLegalMove(Square from, Square to)
 {
-    Bitboard friendlyPieces = (__boards__.state[__boards__.movesCount].colorToPlay == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
+    Bitboard friendlyPieces = (getColor(true) == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
     if((1UL << from) & friendlyPieces)
     {
-        Bitboard movesGenerated = getSemiLegalMovesForSquare(from);
+        Bitboard movesGenerated = getLegalMovesForSquare(from);
         displayBitboard(movesGenerated);
 
         if((1UL << to) & movesGenerated) return true;
@@ -221,14 +230,36 @@ bool isLegalMove(Square from, Square to)
     return false;
 }
 
+static inline bool isThereAnyLegalMove()
+{
+    Color clr = getColor(true);
+
+    Bitboard coloredPieces = (clr == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
+
+    while (coloredPieces)
+    {
+        if(getLegalMovesForSquare(ctz(coloredPieces))) return true;
+        coloredPieces &= (coloredPieces - 1);
+    }
+
+    return false;
+    
+}
+
 GameStatus getGameStatus()
 {
+    if(!isThereAnyLegalMove())
+    {
+        if(isKingSafe()) return STALEMATE;
+        return CHECKMATE;
+    }
+
     return RUNNING;
 }
 
 static inline void updateGameStatus(Square from, Square to)
 {
-    Color c = __boards__.state[__boards__.movesCount].colorToPlay;
+    Color c = getColor(true);
 
     __boards__.state[__boards__.movesCount].move.from = from;
     __boards__.state[__boards__.movesCount].move.to = to;
@@ -243,9 +274,14 @@ bool playMoveOnBoards(Square from, Square to, char promotionToPiece)
 
     Piece movingPiece = __boards__.board[from];
 
+    // Bitboard allowedSquares = getAllowedSquares(from);
+    // displayBitboard(allowedSquares);
+
     // Sequence of these operations must be preserved.
 
     updateGameStatus(from, to);
+
+    
 
     putPieceOnBitboard(movingPiece, to);
     clearSquareOnBitboard(from);
@@ -258,37 +294,135 @@ bool playMoveOnBoards(Square from, Square to, char promotionToPiece)
     return true;
 }
 
-bool isKingSafe(Color c) 
+bool isKingSafe() 
 {
-    if(c == white)
-    {
-        return (bool) (__boards__.bitboards.whiteKing & __boards__.state[__boards__.movesCount].blackAttackMask);
-    }
+    Bitboard* kingBitboard = getBitboardForPiece(getPieceByName(King, true));
 
-    return (bool) (__boards__.bitboards.blackKing & __boards__.state[__boards__.movesCount].whiteAttackMask);
+    return !(*kingBitboard & __boards__.state[__boards__.movesCount].allAttackedSquares);
 }
 
 
+#define ALL_SQUARES ~(0UL)
+
+
+static inline Bitboard automation(Square kingSquare, Bitboard *pattern, Bitboard pieceBoard, int length)
+{
+    // TODO: come up with better names
+
+    for(int i = 0; i < length; i++)
+    {
+        if(pattern[i] & pieceBoard) 
+        {
+
+            int index = ctz(pattern[i] & pieceBoard);
+
+            displayBitboard(pattern[i]);
+
+
+            Bitboard returnVal = (kingSquare > index)? (pattern[i] << (63 - kingSquare)):  (pattern[i] >> (kingSquare));
+            displayBitboard(returnVal);
+            returnVal = (kingSquare > index)? (returnVal >> (63 - kingSquare)):  (returnVal << (kingSquare));
+
+            displayBitboard(returnVal);
+            return returnVal;
+        }
+    }
+
+    return 0;
+
+}
 
 
 Bitboard getAllowedSquares(Square square)
 {
+    // Note: Assumption -> Only one or more distinct piece(s) can attack king at a time.
+    // This might not be true for unnatural positions.
+    // i.e., white to play and white king attacked by two black knights.
+    // such position can never be achieved by standard gameplay, thus unnatural.
+
+    // TODO: modify the logic to cover such edge cases.
+
+    Bitboard* kingBitboard = getBitboardForPiece(getPieceByName(King, true));
+    Square kingSquare = ctz(*kingBitboard);
+
+    if(square == kingSquare) return ALL_SQUARES; 
+
+    // assert board[square] != empty
+
+    Piece clearedPiece = __boards__.board[square];
+
     clearSquareOnBitboard(square);
 
-    Bitboard kingBitboard = (__boards__.state[__boards__.movesCount].colorToPlay == white)? __boards__.bitboards.whiteKing: __boards__.bitboards.blackKing;
-    Square kingSquare = ctz(kingBitboard);
+    Bitboard leftDiagonal = __attackLeftDiagonal__[kingSquare][get45LState(kingSquare)];
+    Bitboard rightDiagonal = __attackRightDiagonal__[kingSquare][get45RState(kingSquare)];
+    Bitboard horizontal = __attackRank__[kingSquare][getRankState(kingSquare)];
+    Bitboard vertical = __attackFile__[kingSquare][getFileState(kingSquare)];
+    Bitboard knightPattern = __knightAttack__[kingSquare];
+    Bitboard pawnPattern = __pawnAttack__[getColor(true)][kingSquare];
 
-    Bitboard leftDiagonal = __attackLeftDiagonal__[square][get45LState(square)];
+    Bitboard* queenBitboard = getBitboardForPiece(getPieceByName(Queen, false));
+    Bitboard* rookBitboard = getBitboardForPiece(getPieceByName(Rook, false));
+    Bitboard* bishopBitboard = getBitboardForPiece(getPieceByName(Bishop, false));
+    Bitboard* knightBitboard = getBitboardForPiece(getPieceByName(Knight, false));
+    Bitboard* pawnBitboard = getBitboardForPiece(getPieceByName(Pawn, false));
 
-    Bitboard rightDiagonal = __attackRightDiagonal__[square][get45RState(square)];
+    putPieceOnBitboard(clearedPiece, square);
 
-    Bitboard horizontal = __attackRank__[square][getRankState(square)];
+    int maxChecks = 5;
 
-    Bitboard vertical = __attackFile__[square][getFileState(square)];
-
-
+    Bitboard lineOfAttack = 0;
 
 
+    Bitboard queenPattern[] = { leftDiagonal, rightDiagonal, horizontal, vertical };
 
+    Bitboard queenAttack = automation(kingSquare, queenPattern, *queenBitboard, 4);
+
+    if(queenAttack) 
+    {
+        lineOfAttack |= queenAttack;
+    }
+    else maxChecks--;
+
+
+    Bitboard rookPattern[] = { horizontal, vertical };
+
+    Bitboard rookAttack = automation(kingSquare, rookPattern, *rookBitboard, 2);
+
+    if(rookAttack) 
+    {
+        lineOfAttack |= rookAttack;
+    }
+    else maxChecks--;
+
+
+
+    Bitboard bishopPattern[] = { leftDiagonal, rightDiagonal };
+
+    Bitboard bishopAttack = automation(kingSquare, bishopPattern, *bishopBitboard, 2);
+
+    if(bishopAttack) 
+    {
+        lineOfAttack |= bishopAttack;
+    }
+    else maxChecks--;
+
+
+
+    if(*knightBitboard & knightPattern) {
+        lineOfAttack |= (knightPattern & *knightBitboard);
+    }
+    else maxChecks--;
+
+
+    if(*pawnBitboard & pawnPattern) {
+        lineOfAttack |= (*pawnBitboard & pawnPattern);
+    }
+    else maxChecks--;
+
+
+    if(maxChecks == 0) return ALL_SQUARES;
+    
+    if(maxChecks > 1) return 0;
+
+    return lineOfAttack;
 }
-

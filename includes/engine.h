@@ -21,5 +21,6 @@ GameStatus getGameStatus();
 
 bool playMoveOnBoards(Square from, Square to, char promotionToPiece);
 bool undoMovesOnBoards(int numberOfMoves);
-bool isKingSafe(Color c);
+bool isKingSafe();
 void displayBitboard(Bitboard bitboard);
+Bitboard getAllowedSquares(Square square);

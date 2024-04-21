@@ -12,12 +12,12 @@ Color getColorByPiece(Piece p)
     return white;
 }
 
-Piece getPieceByName(PieceName name, bool friendly)
+Piece getPieceByName(PieceName name, bool isFriendly)
 {
+    // relative to the turns of the players
 
-    Color currentColor = __boards__.state[__boards__.movesCount].colorToPlay;
 
-    Color requestedColor = (friendly)? ((currentColor == white)? white: black): ((currentColor == white)? black: white);
+    Color requestedColor = getColor(isFriendly);
 
     switch (name)
     {
@@ -69,4 +69,11 @@ Piece getPieceByColor(PieceName name, Color clr)
     }  
 
     return nullPiece;
+}
+
+Color getColor(bool isFriendly) 
+{
+    Color currentPlayingColor = __boards__.state[__boards__.movesCount].colorToPlay;
+
+    return (isFriendly)? currentPlayingColor: !currentPlayingColor;
 }

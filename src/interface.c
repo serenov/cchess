@@ -1,7 +1,9 @@
 #include "interface.h"
 #include "magicBoards.h"
+#include "piece.h"
 #include <stdlib.h>
 #include <stdio.h>
+
 
 
 
@@ -9,6 +11,7 @@ extern Boards __boards__;
 
 #define BUFFER_LENGTH 5
 #define MIN_LENGTH 4
+#define NEWLINE() printf("\n");
 
 #ifdef _WIN32
     // Windows
@@ -49,6 +52,7 @@ InterfaceInformation getInputAndValidate(char *buffer)
     for(int i = 0; i < 4; i++)
     {
         char currentChar = *(buffer++);
+
         if(i % 2) 
         {
             // ODD
@@ -76,6 +80,7 @@ InterfaceInformation getInputAndValidate(char *buffer)
 InterfaceInformation decodeAndPlay(char *input)
 {
     // input must be 5 characters long
+    // input must be legitimate.
     
     Square from = input[0] - 'a' + (input[1] - '1') * 8;
     Square to = input[2] - 'a' + (input[3] - '1') * 8;
@@ -84,6 +89,10 @@ InterfaceInformation decodeAndPlay(char *input)
     {
         return illegalMoveError;
     }
+
+    if(!isKingSafe()) return Check;
+
+
     return allFine;
 }
 
@@ -113,14 +122,12 @@ void displayBoard()
     // displayBitboard(__boards__.bitboards.occupiedRotated45RBoard);
 }
 
-void printInterfaceInformation(InterfaceInformation is)
+void printInterfaceInformation(InterfaceInformation info, char* buffer)
 {
-    switch (is)
+    char *s = getColor(true) == white? "white": "black";
+
+    switch (info)
     {
-    case allFine:
-        char *s = __boards__.state[__boards__.movesCount].colorToPlay == white? "white": "black";
-        printf("[INFO] Now %s's turn.", s);
-        break;
     case RankError:
         printf("[ERROR] Invalid rank.");
         break;
@@ -130,10 +137,29 @@ void printInterfaceInformation(InterfaceInformation is)
     case illegalMoveError:
         printf("[ERROR] Illegal move.");
         break;
+    case Check: 
+        printf("[WARNING] %s's king is in check.", s);
+        break;
+    case CheckmateOnBoard:
+        printf("[INFO] Checkmate, %s is triumphant.", s);
+        return;
+    case StalemateOnBoard:
+        printf("[INFO] Match ended in an impasse.");
+        return;
     
     default:
         break;
     }
+    NEWLINE();
+
+    if(info != allFine && info != Check) {
+        printf("[INFO] Last Input: ");
+        while(*buffer) printf("%c", *(buffer++));
+        NEWLINE();
+    }
+
+
+    printf("[INFO] Now %s's turn.", s);
 }
 
 void gameloop()
@@ -141,7 +167,7 @@ void gameloop()
     char buffer[BUFFER_LENGTH];
 
     GameStatus gs;
-    InterfaceInformation is = allFine;
+    InterfaceInformation info = allFine;
 
     // clearing for the first render
     CLEAR_SCREEN();
@@ -149,17 +175,25 @@ void gameloop()
 
     while((gs = getGameStatus()) == RUNNING)
     {
-        printInterfaceInformation(is); 
+        printInterfaceInformation(info, buffer); 
+
         displayBoard();
         initBuffer(buffer);
 
-        if((is = getInputAndValidate(buffer)) == allFine)
+        if((info = getInputAndValidate(buffer)) == allFine)
         {
-            is = decodeAndPlay(buffer);
+            info = decodeAndPlay(buffer);
         }
 
         CLEAR_SCREEN();
     }
+
+    CLEAR_SCREEN();
+
+    displayBoard();
+
+    if(gs == CHECKMATE) printInterfaceInformation(CheckmateOnBoard, NULL);
+    else printInterfaceInformation(StalemateOnBoard, NULL);
 }
 
 
@@ -167,7 +201,11 @@ void gameloop()
 int main(int argc, char *argv)
 {
     initMagicBoards(); 
-    setFEN(NULL);
+
+    if(!setFEN(NULL)) {
+        printf("Improper FEN.");
+        exit(1);
+    };
 
     gameloop();
 

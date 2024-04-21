@@ -1,26 +1,6 @@
 #include "magicBoardConstants.h"
 #include "magicBoards.h"
 #include <stdio.h>
-
-void displayBitboard(Bitboard bitboard)
-{
-    Bitboard pos = 1UL;
-
-    for (int y = 7; y > -1; y--)
-    {
-
-        printf("\n -------------------------------\n");
-        for (int x = 0; x < 8; x++)
-        {
-            char c = ((pos << (y * 8 + x)) & bitboard) ? '*' : ' ';
-
-            printf("| %c ", c);
-        }
-        printf("|");
-    }
-    printf("\n -------------------------------\n");
-}
-
 int main()
 {
     initMagicBoards();

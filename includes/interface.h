@@ -5,6 +5,11 @@ typedef enum {
     FileError,
     lengthError,
     illegalMoveError,
+    Check,
+    CheckmateOnBoard,
+    StalemateOnBoard,
     allFine
 
 } InterfaceInformation;
+
+

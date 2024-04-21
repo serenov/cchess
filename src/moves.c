@@ -1,57 +1,59 @@
 #include "moves.h"
+#include "piece.h"
 #include "engine.h"
 #include "magicBoardConstants.h"
+#include "bitboards.h"
 
 extern Boards __boards__;
 
-static inline Bitboard generateKingMoves(Square square)
+static inline Bitboard generateKingMoves(Square square, bool isFriendly)
 {
     // first generates the pseudo legalMoves
-    Color c = __boards__.state[__boards__.movesCount].colorToPlay;
+    Color c = getColor(isFriendly);
 
-    Bitboard friendlyPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
+    Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
-    return (~friendlyPieces & __kingAttack__[square]);
+    return (~coloredPieces & ~(__boards__.state[__boards__.movesCount].allAttackedSquares) & __kingAttack__[square]);
 }
 
-static inline Bitboard generateKnightMoves(Square square)
+static inline Bitboard generateKnightMoves(Square square, bool isFriendly)
 {
     // first generates the pseudo legalMoves
-    Color c = __boards__.state[__boards__.movesCount].colorToPlay;
+    Color c = getColor(isFriendly);
 
-    Bitboard friendlyPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
+    Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
-    return (~friendlyPieces & __knightAttack__[square]);
+    return (~coloredPieces & __knightAttack__[square]);
 }
 
-static inline Bitboard generateRookMoves(Square square)
+static inline Bitboard generateRookMoves(Square square, bool isFriendly)
 {
     // first generates the pseudo legalMoves
-    Color c = __boards__.state[__boards__.movesCount].colorToPlay;
+    Color c = getColor(isFriendly);
 
-    Bitboard friendlyPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
+    Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
     Bitboard MovesGenerated = __attackFile__[square][getFileState(square)] | __attackRank__[square][getRankState(square)];
 
 
-    return (~friendlyPieces & MovesGenerated);
+    return (~coloredPieces & MovesGenerated);
 }
 
-static inline Bitboard generateBishopMoves(Square square)
+static inline Bitboard generateBishopMoves(Square square, bool isFriendly)
 {
-    Color c = __boards__.state[__boards__.movesCount].colorToPlay;
+    Color c = getColor(isFriendly);
 
-    Bitboard friendlyPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
+    Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
     Bitboard MovesGenerated = __attackLeftDiagonal__[square][get45LState(square)] | __attackRightDiagonal__[square][get45RState(square)];
 
 
-    return (~friendlyPieces & MovesGenerated);
+    return (~coloredPieces & MovesGenerated);
 }
 
-static inline Bitboard generatePawnMoves(Square square)
+static inline Bitboard generatePawnMoves(Square square, bool isFriendly)
 {
-    Color c = __boards__.state[__boards__.movesCount].colorToPlay;
+    Color c = getColor(isFriendly);
 
 
     Bitboard opponentPieces = (c == white)? __boards__.bitboards.blackPieces: __boards__.bitboards.whitePieces;
@@ -66,13 +68,13 @@ static inline Bitboard generatePawnMoves(Square square)
         if(c == white)
         {
             if(square < 16) {
-                movesGenerated |= 1UL << (square + 16);
+                movesGenerated |= ~(__boards__.bitboards.occupiedBoard) & (1UL << (square + 16));
             }
         }
         else 
         {
             if(square > 47) {
-                movesGenerated |= 1UL << (square - 16);
+                movesGenerated |= ~(__boards__.bitboards.occupiedBoard) & (1UL << (square - 16));
             }
         }
     }
@@ -80,61 +82,66 @@ static inline Bitboard generatePawnMoves(Square square)
     return movesGenerated;
 }
 
-Bitboard getPseudoLegalMoves(Piece piece, Square square)
+Bitboard getPseudoLegalMoves(Piece piece, Square square, bool isFriendly)
 {
     switch (piece)
     {
     case whiteKing:
     case blackKing:
-        return generateKingMoves(square);
+        return generateKingMoves(square, isFriendly);
 
     case whiteQueen:
     case blackQueen:
-        return generateRookMoves(square) | generateBishopMoves(square);
+        return generateRookMoves(square, isFriendly) | generateBishopMoves(square, isFriendly);
 
     case whiteRook:
     case blackRook:
-        return generateRookMoves(square);
+        return generateRookMoves(square, isFriendly);
 
     case whiteBishop:
     case blackBishop:
-        return generateBishopMoves(square);
+        return generateBishopMoves(square, isFriendly);
 
     case whiteKnight:
     case blackKnight:
-        return generateKnightMoves(square);
+        return generateKnightMoves(square, isFriendly);
 
     case blackPawn:
     case whitePawn:
-        return generatePawnMoves(square);
+        return generatePawnMoves(square, isFriendly);
     }
     return 0UL;
 }
 
-Bitboard getSemiLegalMovesForSquare(Square square)
+Bitboard getLegalMovesForSquare(Square square)
 {
-    return getPseudoLegalMoves(__boards__.board[square], square);
+    Bitboard legalMoves = getPseudoLegalMoves(__boards__.board[square], square, true);
+    if(__boards__.board[square] != whiteKing && __boards__.board[square] != blackKing)
+        legalMoves &= getAllowedSquares(square);
+    return legalMoves;
 }
 
-Bitboard getLegalMoves(Square square)
-{
-    Piece p = __boards__.board[square];
-    Bitboard allowedSquares = ~(0UL);
+// Bitboard getLegalMoves(Square square)
+// {
+//     Piece p = __boards__.board[square];
+//     Bitboard allowedSquares = ~(0UL);
 
-    if(p == nullPiece) return 0;
+//     if(p == nullPiece) return 0;
 
-    if(p == whiteKing || p == blackKing)
-    {
-        allowedSquares = (p == whiteKing)? ~(__boards__.state[__boards__.movesCount].blackAttackMask): ~(__boards__.state[__boards__.movesCount].whiteAttackMask);
-        return generateKingMoves(square) & allowedSquares;
-    }
+//     if(p == whiteKing || p == blackKing)
+//     {
+//         allowedSquares = (p == whiteKing)? ~(__boards__.state[__boards__.movesCount].blackAttackMask): ~(__boards__.state[__boards__.movesCount].whiteAttackMask);
+//         return generateKingMoves(square) & allowedSquares;
+//     }
 
-    if(!isKingSafe(__boards__.state[__boards__.movesCount].colorToPlay))
-    {
-        allowedSquares = 1;
-    }
+//     if(!isKingSafe(__boards__.state[__boards__.movesCount].colorToPlay))
+//     {
+//         allowedSquares = 1;
+//     }
 
-}
+// }
+
+
 
 int getRankState(Square square)
 {

@@ -61,8 +61,8 @@ typedef struct
     Color colorToPlay;
     Move move;
     Piece capturedPiece; // Recently Captured Piece
-    Bitboard blackAttackMask;
-    Bitboard whiteAttackMask;
+    Bitboard allAttackedSquares;
+    
 } stateInfo;
 
 
