@@ -2,6 +2,8 @@
 
 #include <stdbool.h>
 #include "global_structs.h"
+#include "piece.h"
+#include "magicBoards.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define ctz(x) __builtin_ctzll(x)
