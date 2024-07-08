@@ -80,7 +80,7 @@ InterfaceInformation getInputAndValidate(char *buffer)
 InterfaceInformation decodeAndPlay(char *input)
 {
     // input must be 5 characters long
-    // input must be legitimate.
+    // input must be valid i.e, in format [from square][to square][promotion info (optional)].
     
     Square from = input[0] - 'a' + (input[1] - '1') * 8;
     Square to = input[2] - 'a' + (input[3] - '1') * 8;
@@ -150,14 +150,18 @@ void printInterfaceInformation(InterfaceInformation info, char* buffer)
     default:
         break;
     }
+
     NEWLINE();
 
     if(info != allFine && info != Check) {
+        // print last input incase if it's an illegal move
+        // TODO: fix the logic here
         printf("[INFO] Last Input: ");
+
         while(*buffer) printf("%c", *(buffer++));
+
         NEWLINE();
     }
-
 
     printf("[INFO] Now %s's turn.", s);
 }
