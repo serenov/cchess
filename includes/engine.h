@@ -26,3 +26,4 @@ bool undoMovesOnBoards(int numberOfMoves);
 bool isKingSafe();
 void displayBitboard(Bitboard bitboard);
 Bitboard getAllowedSquares(Square square);
+MoveType getLatestMoveType() {

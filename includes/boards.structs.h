@@ -51,18 +51,26 @@ typedef enum {
     DRAW
 } GameStatus;
 
+typedef enum {
+    RegularMove,
+    CastlingMove,
+    EnpassantMove,
+    promotionMove
+} MoveType;
+
 typedef struct 
 {
     bool ignoreCastling[2];
     bool canCastleRight[2];
     bool canCastleLeft[2];
+    
     Square Enpassant;
     GameStatus status;
     Color colorToPlay;
     Move move;
     Piece capturedPiece; // Recently Captured Piece
     Bitboard allAttackedSquares;
-    
+    MoveType typeOfMove;
 } stateInfo;
 
 

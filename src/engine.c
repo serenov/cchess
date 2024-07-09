@@ -257,16 +257,63 @@ GameStatus getGameStatus()
     return RUNNING;
 }
 
+void handleEnpassant(Square from, Square to, Piece* movingPiece) {
+
+    if(__boards__.state[__boards__.movesCount].Enpassant == to)
+    {
+        // Enpassant move handling.
+        Square attackedSquare = _null;
+
+        if(*movingPiece == whitePawn)
+        {
+            attackedSquare = to - 8;
+        }
+        else if(*movingPiece == blackPawn)
+        {
+            attackedSquare = to + 8;
+        }
+
+        if(attackedSquare != _null) {
+            __boards__.state[__boards__.movesCount].typeOfMove = EnpassantMove;
+
+            clearSquareOnBoard(attackedSquare);
+            clearSquareOnBitboard(attackedSquare);
+        }
+    }
+}
+
 static inline void updateGameStatus(Square from, Square to)
 {
+    __boards__.state[__boards__.movesCount].typeOfMove = RegularMove;
+
+    Piece movingPiece = __boards__.board[from];
+
+    handleEnpassant(from, to, &movingPiece);
+
     Color c = getColor(true);
 
     __boards__.state[__boards__.movesCount].move.from = from;
     __boards__.state[__boards__.movesCount].move.to = to;
+
     __boards__.state[__boards__.movesCount].capturedPiece = __boards__.board[to];
+
     __boards__.movesCount++;
+
     __boards__.state[__boards__.movesCount].colorToPlay = !c;
+
+    // updating enpassant status.
+
+    Square enpassantSquare = _null;
+
+    if (movingPiece == whitePawn || movingPiece == blackPawn) {
+        if(abs(from - to) == 16) {
+            enpassantSquare = (movingPiece == whitePawn)? from + 8: from - 8;
+        }
+    }
+
+    __boards__.state[__boards__.movesCount].Enpassant = enpassantSquare;
 }
+
 
 bool playMoveOnBoards(Square from, Square to, char promotionToPiece)
 {
@@ -274,20 +321,17 @@ bool playMoveOnBoards(Square from, Square to, char promotionToPiece)
 
     Piece movingPiece = __boards__.board[from];
 
-    // Bitboard allowedSquares = getAllowedSquares(from);
-    // displayBitboard(allowedSquares);
-
     // Sequence of these operations must be preserved.
 
-    updateGameStatus(from, to);
 
-    
+    updateGameStatus(from, to);
 
     putPieceOnBitboard(movingPiece, to);
     clearSquareOnBitboard(from);
 
     putPieceOnBoard(movingPiece, to);
     clearSquareOnBoard(from);
+
 
     updateAttackedSquares();
 
@@ -330,6 +374,10 @@ static inline Bitboard automation(Square kingSquare, Bitboard *pattern, Bitboard
 
     return 0;
 
+}
+
+MoveType getLatestMoveType() {
+    return __boards__.state[__boards__.movesCount - 1].typeOfMove;
 }
 
 

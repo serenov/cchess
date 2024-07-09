@@ -62,6 +62,11 @@ static inline Bitboard generatePawnMoves(Square square, bool isFriendly)
 
     Bitboard movesGenerated = (__pawnAttack__[c][square] & opponentPieces) | pawnMove;
 
+    Square enpassantSquare = __boards__.state[__boards__.movesCount].Enpassant;
+
+    if(enpassantSquare != _null) {
+        movesGenerated |= 1UL << enpassantSquare;
+    }
 
     if(pawnMove)
     {
