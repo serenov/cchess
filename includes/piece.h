@@ -5,6 +5,6 @@
 #define WHITE_BOUNDARY 'Z'
 
 Color getColorByPiece(Piece p);
-Piece getPieceByName(PieceName name, bool isFriendly);
+Piece getPieceByName(PieceName name, bool currentlyPlaying);
 Piece getPieceByColor(PieceName name, Color clr);
-Color getColor(bool isFriendly);
+Color getColor(bool currentlyPlaying);

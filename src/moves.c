@@ -6,30 +6,30 @@
 
 extern Boards __boards__;
 
-static inline Bitboard generateKingMoves(Square square, bool isFriendly)
+static inline Bitboard generateKingMoves(Square square, bool currentlyPlaying)
 {
     // first generates the pseudo legalMoves
-    Color c = getColor(isFriendly);
+    Color c = getColor(currentlyPlaying);
 
     Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
     return (~coloredPieces & ~(__boards__.state[__boards__.movesCount].allAttackedSquares) & __kingAttack__[square]);
 }
 
-static inline Bitboard generateKnightMoves(Square square, bool isFriendly)
+static inline Bitboard generateKnightMoves(Square square, bool currentlyPlaying)
 {
     // first generates the pseudo legalMoves
-    Color c = getColor(isFriendly);
+    Color c = getColor(currentlyPlaying);
 
     Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
     return (~coloredPieces & __knightAttack__[square]);
 }
 
-static inline Bitboard generateRookMoves(Square square, bool isFriendly)
+static inline Bitboard generateRookMoves(Square square, bool currentlyPlaying)
 {
     // first generates the pseudo legalMoves
-    Color c = getColor(isFriendly);
+    Color c = getColor(currentlyPlaying);
 
     Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
@@ -39,9 +39,9 @@ static inline Bitboard generateRookMoves(Square square, bool isFriendly)
     return (~coloredPieces & MovesGenerated);
 }
 
-static inline Bitboard generateBishopMoves(Square square, bool isFriendly)
+static inline Bitboard generateBishopMoves(Square square, bool currentlyPlaying)
 {
-    Color c = getColor(isFriendly);
+    Color c = getColor(currentlyPlaying);
 
     Bitboard coloredPieces = (c == white)? __boards__.bitboards.whitePieces: __boards__.bitboards.blackPieces;
 
@@ -51,9 +51,9 @@ static inline Bitboard generateBishopMoves(Square square, bool isFriendly)
     return (~coloredPieces & MovesGenerated);
 }
 
-static inline Bitboard generatePawnMoves(Square square, bool isFriendly)
+static inline Bitboard generatePawnMoves(Square square, bool currentlyPlaying)
 {
-    Color c = getColor(isFriendly);
+    Color c = getColor(currentlyPlaying);
 
 
     Bitboard opponentPieces = (c == white)? __boards__.bitboards.blackPieces: __boards__.bitboards.whitePieces;
@@ -65,7 +65,8 @@ static inline Bitboard generatePawnMoves(Square square, bool isFriendly)
     Square enpassantSquare = __boards__.state[__boards__.movesCount].Enpassant;
 
     if(enpassantSquare != _null) {
-        movesGenerated |= 1UL << enpassantSquare;
+        movesGenerated |= (1UL << enpassantSquare) & __pawnAttack__[c][square];
+        isKingSafe(0)
     }
 
     if(pawnMove)
@@ -87,33 +88,33 @@ static inline Bitboard generatePawnMoves(Square square, bool isFriendly)
     return movesGenerated;
 }
 
-Bitboard getPseudoLegalMoves(Piece piece, Square square, bool isFriendly)
+Bitboard getPseudoLegalMoves(Piece piece, Square square, bool currentlyPlaying)
 {
     switch (piece)
     {
     case whiteKing:
     case blackKing:
-        return generateKingMoves(square, isFriendly);
+        return generateKingMoves(square, currentlyPlaying);
 
     case whiteQueen:
     case blackQueen:
-        return generateRookMoves(square, isFriendly) | generateBishopMoves(square, isFriendly);
+        return generateRookMoves(square, currentlyPlaying) | generateBishopMoves(square, currentlyPlaying);
 
     case whiteRook:
     case blackRook:
-        return generateRookMoves(square, isFriendly);
+        return generateRookMoves(square, currentlyPlaying);
 
     case whiteBishop:
     case blackBishop:
-        return generateBishopMoves(square, isFriendly);
+        return generateBishopMoves(square, currentlyPlaying);
 
     case whiteKnight:
     case blackKnight:
-        return generateKnightMoves(square, isFriendly);
+        return generateKnightMoves(square, currentlyPlaying);
 
     case blackPawn:
     case whitePawn:
-        return generatePawnMoves(square, isFriendly);
+        return generatePawnMoves(square, currentlyPlaying);
     }
     return 0UL;
 }

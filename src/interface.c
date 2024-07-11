@@ -189,10 +189,24 @@ void gameloop()
             info = decodeAndPlay(buffer);
         }
 
-        CLEAR_SCREEN();
+        switch (getLatestMoveType())
+        {
+        case RegularMove:
+            printf("it is a regular move");
+            break;
+        
+        case EnpassantMove:
+            printf("it is an Enpassant move.");
+            break;
+        
+        default:
+            break;
+        }
+
+        // CLEAR_SCREEN();
     }
 
-    CLEAR_SCREEN();
+    // CLEAR_SCREEN();
 
     displayBoard();
 

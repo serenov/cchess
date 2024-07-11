@@ -23,7 +23,6 @@ typedef enum {
     blackKnight = 'n',
     blackPawn = 'p',
     nullPiece = ' '
-
 } Piece;
 
 typedef enum {

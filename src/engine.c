@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 
-#define DEFAULT_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#define DEFAULT_FEN "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - "
 // #define DEFAULT_FEN "rn1qkbnr/pppR1ppp/8/8/1b6/8/PPPPP1PP/RNBQKBNR b KQkq - 0 1"
 // #define DEFAULT_FEN "8/b1p2P2/2P3p1/2k5/2rp3n/4p2B/P1Pp4/6KN w - - 0 1"
 
@@ -152,13 +152,13 @@ static inline Bitboard iteratePiecesAndGenerateMoves(Piece piece)
 {
     Bitboard bitboard = *(getBitboardForPiece(piece));
     
-    displayBitboard(bitboard);
+    // displayBitboard(bitboard);
 
     Bitboard movesGenerated = 0;
 
     while(bitboard != 0) {
         movesGenerated |= getPseudoLegalMoves(piece, ctz(bitboard), false);
-        displayBitboard(movesGenerated);
+        // displayBitboard(movesGenerated);
         bitboard &= (bitboard - 1);
     }
 
@@ -188,7 +188,7 @@ Bitboard getAttackedSquares()
     attackedSquares |= getPawnAttackMask();
 
 
-    displayBitboard(attackedSquares);
+    // displayBitboard(attackedSquares);
 
     return attackedSquares;
 }
@@ -222,12 +222,17 @@ bool isLegalMove(Square from, Square to)
     if((1UL << from) & friendlyPieces)
     {
         Bitboard movesGenerated = getLegalMovesForSquare(from);
-        displayBitboard(movesGenerated);
+        // displayBitboard(movesGenerated);
 
         if((1UL << to) & movesGenerated) return true;
     }
 
     return false;
+}
+
+GameStatus getGameStatus()
+{
+    return __boards__.state[__boards__.movesCount].status;
 }
 
 static inline bool isThereAnyLegalMove()
@@ -246,15 +251,21 @@ static inline bool isThereAnyLegalMove()
     
 }
 
-GameStatus getGameStatus()
+void updateGameStatus()
 {
+    GameStatus status = RUNNING;
+
     if(!isThereAnyLegalMove())
     {
-        if(isKingSafe()) return STALEMATE;
-        return CHECKMATE;
+        if(isKingSafe()) {
+            status = STALEMATE;
+        }
+        else {
+            status = CHECKMATE;
+        }
     }
 
-    return RUNNING;
+    __boards__.state[__boards__.movesCount].status = status;
 }
 
 void handleEnpassant(Square from, Square to, Piece* movingPiece) {
@@ -263,18 +274,22 @@ void handleEnpassant(Square from, Square to, Piece* movingPiece) {
     {
         // Enpassant move handling.
         Square attackedSquare = _null;
+        Piece capturedPiece = nullPiece;
 
         if(*movingPiece == whitePawn)
         {
             attackedSquare = to - 8;
+            capturedPiece = blackPawn;
         }
         else if(*movingPiece == blackPawn)
         {
             attackedSquare = to + 8;
+            capturedPiece = whitePawn;
         }
 
         if(attackedSquare != _null) {
             __boards__.state[__boards__.movesCount].typeOfMove = EnpassantMove;
+            __boards__.state[__boards__.movesCount].capturedPiece = capturedPiece;
 
             clearSquareOnBoard(attackedSquare);
             clearSquareOnBitboard(attackedSquare);
@@ -282,9 +297,13 @@ void handleEnpassant(Square from, Square to, Piece* movingPiece) {
     }
 }
 
-static inline void updateGameStatus(Square from, Square to)
+static inline void updateBoardStatus(Square from, Square to)
 {
     __boards__.state[__boards__.movesCount].typeOfMove = RegularMove;
+    __boards__.state[__boards__.movesCount].move.from = from;
+    __boards__.state[__boards__.movesCount].move.to = to;
+
+    __boards__.state[__boards__.movesCount].capturedPiece = __boards__.board[to];
 
     Piece movingPiece = __boards__.board[from];
 
@@ -292,10 +311,7 @@ static inline void updateGameStatus(Square from, Square to)
 
     Color c = getColor(true);
 
-    __boards__.state[__boards__.movesCount].move.from = from;
-    __boards__.state[__boards__.movesCount].move.to = to;
 
-    __boards__.state[__boards__.movesCount].capturedPiece = __boards__.board[to];
 
     __boards__.movesCount++;
 
@@ -324,7 +340,7 @@ bool playMoveOnBoards(Square from, Square to, char promotionToPiece)
     // Sequence of these operations must be preserved.
 
 
-    updateGameStatus(from, to);
+    updateBoardStatus(from, to);
 
     putPieceOnBitboard(movingPiece, to);
     clearSquareOnBitboard(from);
@@ -335,12 +351,52 @@ bool playMoveOnBoards(Square from, Square to, char promotionToPiece)
 
     updateAttackedSquares();
 
+    updateGameStatus();
+
     return true;
+}
+
+void undoLastMove()
+{
+    int movecnt = __boards__.movesCount - 1;
+
+    MoveType mvtype = __boards__.state[movecnt].typeOfMove;
+    Move mv = __boards__.state[movecnt].move;
+
+    Piece p = __boards__.board[mv.to];
+    Piece capturedP = __boards__.state[movecnt].capturedPiece;
+
+    putPieceOnBitboard(p, mv.from);
+    clearSquareOnBitboard(mv.to);
+
+    if(mvtype == RegularMove) 
+    {
+        //sequence of operations must be preserved please.
+        if(capturedP != nullPiece) putPieceOnBitboard(capturedP, mv.to);
+
+        putPieceOnBoard(p, mv.from);
+        putPieceOnBoard(capturedP, mv.to);
+
+    }
+    else if(mvtype == EnpassantMove) 
+    {
+        //sequence of operations must be preserved please.
+        putPieceOnBitboard(capturedP, (capturedP == whitePawn) ? mv.to + 8 : mv.to - 8);
+
+        putPieceOnBoard(p, mv.from);
+        clearSquareOnBoard(mv.to);
+        putPieceOnBoard(capturedP, (capturedP == whitePawn) ? mv.to + 8 : mv.to - 8);
+
+    }
+
+    __boards__.movesCount -= 1;
 }
 
 bool isKingSafe() 
 {
     Bitboard* kingBitboard = getBitboardForPiece(getPieceByName(King, true));
+
+    // displayBitboard(__boards__.state[__boards__.movesCount].allAttackedSquares);
 
     return !(*kingBitboard & __boards__.state[__boards__.movesCount].allAttackedSquares);
 }
@@ -360,14 +416,14 @@ static inline Bitboard automation(Square kingSquare, Bitboard *pattern, Bitboard
 
             int index = ctz(pattern[i] & pieceBoard);
 
-            displayBitboard(pattern[i]);
+            // displayBitboard(pattern[i]);
 
 
             Bitboard returnVal = (kingSquare > index)? (pattern[i] << (63 - kingSquare)):  (pattern[i] >> (kingSquare));
-            displayBitboard(returnVal);
+            // displayBitboard(returnVal);
             returnVal = (kingSquare > index)? (returnVal >> (63 - kingSquare)):  (returnVal << (kingSquare));
 
-            displayBitboard(returnVal);
+            // displayBitboard(returnVal);
             return returnVal;
         }
     }

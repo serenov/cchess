@@ -4,6 +4,8 @@
 #include "global_structs.h"
 #include "piece.h"
 #include "magicBoards.h"
+#include "bitboards.h"
+#include "moves.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define ctz(x) __builtin_ctzll(x)
@@ -22,8 +24,8 @@ bool isLegalMove(Square from, Square to);
 GameStatus getGameStatus();
 
 bool playMoveOnBoards(Square from, Square to, char promotionToPiece);
-bool undoMovesOnBoards(int numberOfMoves);
+void undoLastMove();
 bool isKingSafe();
 void displayBitboard(Bitboard bitboard);
 Bitboard getAllowedSquares(Square square);
-MoveType getLatestMoveType() {
+MoveType getLatestMoveType(); 

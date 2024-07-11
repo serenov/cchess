@@ -53,9 +53,10 @@ typedef enum {
 
 typedef enum {
     RegularMove,
+    CaptureMove,
     CastlingMove,
     EnpassantMove,
-    promotionMove
+    PromotionMove
 } MoveType;
 
 typedef struct 
